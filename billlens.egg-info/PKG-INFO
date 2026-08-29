@@ -1,3 +1,33 @@
+Metadata-Version: 2.4
+Name: billlens
+Version: 0.1.0
+Summary: AI-powered parliamentary intelligence for everyone
+License: MIT
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: fastapi>=0.115
+Requires-Dist: uvicorn[standard]>=0.34
+Requires-Dist: httpx>=0.28
+Requires-Dist: pydantic>=2.10
+Requires-Dist: pydantic-settings>=2.7
+Requires-Dist: python-dotenv>=1.0
+Requires-Dist: openai>=1.60
+Requires-Dist: redis>=5.2
+Requires-Dist: sentence-transformers>=3.3
+Requires-Dist: numpy>=2.0
+Requires-Dist: sqlalchemy>=2.0
+Requires-Dist: asyncpg>=0.30
+Requires-Dist: alembic>=1.14
+Requires-Dist: streamlit>=1.28
+Provides-Extra: dev
+Requires-Dist: pytest>=8.3; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.25; extra == "dev"
+Requires-Dist: pytest-cov>=6.0; extra == "dev"
+Requires-Dist: ruff>=0.9; extra == "dev"
+Requires-Dist: mypy>=1.14; extra == "dev"
+Dynamic: license-file
+
 # BillLens
 
 AI-powered parliamentary intelligence for everyone.

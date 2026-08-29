@@ -9,186 +9,209 @@ from __future__ import annotations
 
 from typing import List
 
-from pydantic import BaseModel, Field
+from billlens.models.answer import (
+    AnswerResponse,
+    AnswerClaim,
+    AnswerSource,
+)
+from billlens.models.evidence import Evidence
 
-from .researcher import Evidence
 from .verifier import VerificationResult
 
 
-class AnswerSource(BaseModel):
-    title: str
-    url: str | None = None
-    source_type: str
-
-
-class BillLensAnswer(BaseModel):
-    question: str
-    summary: str
-    what_happened: List[str] = Field(
-        default_factory=list
-    )
-    legislation: List[str] = Field(
-        default_factory=list
-    )
-    parliamentary_activity: List[str] = Field(
-        default_factory=list
-    )
-    votes: List[str] = Field(
-        default_factory=list
-    )
-    what_did_not_happen: List[str] = Field(
-        default_factory=list
-    )
-    sources: List[AnswerSource] = Field(
-        default_factory=list
-    )
-    confidence: float = 0.0
-    warnings: List[str] = Field(
-        default_factory=list
-    )
-
-
 class BillLensAnswerGenerator:
-
+    """
+    Converts verified claims into a structured answer response.
+    """
+    
     def generate(
         self,
         question: str,
         verification: VerificationResult,
         evidence: List[Evidence],
-    ) -> BillLensAnswer:
-
+    ) -> AnswerResponse:
+        """
+        Generate a final answer from verification results.
+        """
+        
         supported = [
             claim
             for claim in verification.verified_claims
             if claim.supported
         ]
-
+        
         unsupported = [
             claim
             for claim in verification.verified_claims
             if not claim.supported
         ]
-
+        
         what_happened = []
         legislation = []
         parliamentary_activity = []
         votes = []
-
+        
+        # Categorize supported claims
         for claim in supported:
-
             text = claim.claim
-
+            
             source_types = {
                 source.source_type
                 for source in claim.supporting_evidence
             }
-
+            
             if any(
                 "legislation" in source
                 for source in source_types
             ):
                 legislation.append(text)
-
+            
             elif any(
                 "vote" in source
                 for source in source_types
             ):
                 votes.append(text)
-
+            
             elif any(
                 "debate" in source
                 or "parliament" in source
+                or "hansard" in source
                 for source in source_types
             ):
                 parliamentary_activity.append(text)
-
+            
             else:
                 what_happened.append(text)
-
+        
+        # Build summary
         summary = self._build_summary(
             supported,
             question,
         )
-
-        sources = self._build_sources(
+        
+        # Build sources
+        answer_sources = self._build_sources(
             supported
         )
-
-        warnings = list(
-            verification.warnings
-        )
-
+        
+        # Build warnings
+        warnings = list(verification.warnings)
+        
         if unsupported:
             warnings.append(
                 "Some claims could not be verified "
                 "against the available evidence."
             )
-
-        return BillLensAnswer(
+        
+                # Check if all planned steps were completed
+        if hasattr(verification, 'planned_steps'):
+            research_completed = all(
+                step in verification.completed_steps
+                for step in verification.planned_steps
+            )
+        else:
+            research_completed = True
+        
+        if not research_completed:
+            warnings.append(
+                "Research did not complete all planned steps."
+            )
+        
+        # Build what_did_not_happen
+        what_did_not_happen = []
+        
+        if unsupported:
+            for claim in unsupported:
+                what_did_not_happen.append(
+                    f"Not verified: {claim.claim}"
+                )
+        
+        # Create answer claims
+        answer_claims = [
+            AnswerClaim(
+                text=claim.claim,
+                supported=claim.supported,
+                confidence=claim.confidence,
+                sources=[
+                    AnswerSource(
+                        title=source.title,
+                        source_type=source.source_type,
+                        url=source.url,
+                        date=source.date,
+                    )
+                    for source in claim.supporting_evidence
+                ],
+            )
+            for claim in verification.verified_claims
+        ]
+        
+        return AnswerResponse(
             question=question,
             summary=summary,
             what_happened=what_happened,
             legislation=legislation,
             parliamentary_activity=parliamentary_activity,
             votes=votes,
-            what_did_not_happen=[],
-            sources=sources,
+            what_did_not_happen=what_did_not_happen,
+            claims=answer_claims,
+            sources=answer_sources,
             confidence=verification.overall_confidence,
             warnings=warnings,
         )
-
+    
     @staticmethod
     def _build_summary(
         claims,
         question: str,
     ) -> str:
-
+        """Build a summary from supported claims."""
+        
         if not claims:
             return (
                 "BillLens could not find enough "
                 "verified evidence to answer this "
                 "question confidently."
             )
-
+        
         first_claims = [
             claim.claim
             for claim in claims[:3]
         ]
-
+        
         return (
             "Based on the parliamentary and "
             "legislative evidence retrieved, "
             + " ".join(first_claims)
         )
-
+    
     @staticmethod
     def _build_sources(
         claims,
     ) -> List[AnswerSource]:
-
+        """Build unique sources from claims."""
+        
         sources = []
         seen = set()
-
+        
         for claim in claims:
-
             for evidence in claim.supporting_evidence:
-
                 key = (
                     evidence.url
                     or evidence.title
                 )
-
+                
                 if key in seen:
                     continue
-
+                
                 seen.add(key)
-
+                
                 sources.append(
                     AnswerSource(
                         title=evidence.title,
-                        url=evidence.url,
                         source_type=evidence.source_type,
+                        url=evidence.url,
+                        date=evidence.date,
                     )
                 )
-
+        
         return sources[:20]

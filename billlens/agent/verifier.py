@@ -11,7 +11,7 @@ from typing import List
 
 from pydantic import BaseModel, Field
 
-from .researcher import Evidence
+from billlens.models.evidence import Evidence
 
 
 class Claim(BaseModel):
@@ -37,28 +37,40 @@ class VerificationResult(BaseModel):
     warnings: List[str] = Field(
         default_factory=list
     )
+    completed_steps: List[str] = Field(
+        default_factory=list
+    )
+    planned_steps: List[str] = Field(
+        default_factory=list
+    )
 
 
 class BillLensVerifier:
-
+    """
+    Verifies claims against evidence.
+    """
+    
     MINIMUM_SCORE = 0.35
-
+    
     def verify(
         self,
         claims: List[Claim],
         evidence: List[Evidence],
     ) -> VerificationResult:
-
+        """
+        Verify claims against evidence.
+        """
+        
         verified = []
         warnings = []
-
+        
         for claim in claims:
-
+            
             matches = self._find_supporting_evidence(
                 claim,
                 evidence,
             )
-
+            
             if not matches:
                 verified.append(
                     VerifiedClaim(
@@ -71,21 +83,21 @@ class BillLensVerifier:
                         ),
                     )
                 )
-
+                
                 warnings.append(
                     f"Unsupported claim: {claim.text}"
                 )
-
+                
                 continue
-
+            
             confidence = self._calculate_confidence(
                 matches
             )
-
+            
             supported = (
                 confidence >= self.MINIMUM_SCORE
             )
-
+            
             verified.append(
                 VerifiedClaim(
                     claim=claim.text,
@@ -98,13 +110,13 @@ class BillLensVerifier:
                     ),
                 )
             )
-
+            
             if not supported:
                 warnings.append(
                     f"Weak evidence for claim: "
                     f"{claim.text}"
                 )
-
+        
         overall = (
             sum(
                 claim.confidence
@@ -114,47 +126,48 @@ class BillLensVerifier:
             if verified
             else 0.0
         )
-
+        
         return VerificationResult(
             verified_claims=verified,
             overall_confidence=overall,
             warnings=warnings,
         )
-
+    
     def _find_supporting_evidence(
         self,
         claim: Claim,
         evidence: List[Evidence],
     ) -> List[Evidence]:
-
+        """Find evidence supporting a claim."""
+        
         claim_words = self._keywords(claim.text)
-
+        
         scored = []
-
+        
         for item in evidence:
-
+            
             evidence_words = self._keywords(
                 item.content + " " + item.title
             )
-
+            
             overlap = (
                 len(claim_words & evidence_words)
                 / max(len(claim_words), 1)
             )
-
+            
             semantic_score = item.relevance_score
-
+            
             # Normalise search scores to [0, 1].
             semantic_score = min(
                 max(semantic_score, 0.0),
                 1.0,
             )
-
+            
             combined = (
                 overlap * 0.6
                 + semantic_score * 0.4
             )
-
+            
             if combined >= self.MINIMUM_SCORE:
                 scored.append(
                     (
@@ -162,20 +175,21 @@ class BillLensVerifier:
                         item,
                     )
                 )
-
+        
         scored.sort(
             key=lambda x: x[0],
             reverse=True,
         )
-
+        
         return [
             item
             for _, item in scored
         ]
-
+    
     @staticmethod
     def _keywords(text: str) -> set[str]:
-
+        """Extract keywords from text."""
+        
         stop_words = {
             "the",
             "a",
@@ -195,29 +209,30 @@ class BillLensVerifier:
             "were",
             "about",
         }
-
+        
         return {
             word.strip(".,!?():;\"'")
             for word in text.lower().split()
             if len(word) > 2
             and word not in stop_words
         }
-
+    
     @staticmethod
     def _calculate_confidence(
         evidence: List[Evidence],
     ) -> float:
-
+        """Calculate confidence from evidence."""
+        
         if not evidence:
             return 0.0
-
+        
         top = evidence[:3]
-
+        
         scores = [
             min(max(item.relevance_score, 0), 1)
             for item in top
         ]
-
+        
         # Multiple independent sources increase confidence.
         source_bonus = min(
             len(
@@ -229,31 +244,32 @@ class BillLensVerifier:
             * 0.05,
             0.15,
         )
-
+        
         return min(
             sum(scores) / len(scores)
             + source_bonus,
             1.0,
         )
-
+    
     @staticmethod
     def _explain(
         confidence: float,
         evidence: List[Evidence],
     ) -> str:
-
+        """Explain the confidence level."""
+        
         if confidence >= 0.8:
             return (
                 "Strong support from highly relevant "
                 "parliamentary or legislative evidence."
             )
-
+        
         if confidence >= 0.6:
             return (
                 "The claim is reasonably supported by "
                 "relevant evidence."
             )
-
+        
         return (
             "The available evidence provides only "
             "limited support for this claim."
