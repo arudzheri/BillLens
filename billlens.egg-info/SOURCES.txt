@@ -1,7 +1,7 @@
 LICENSE
 README.md
 pyproject.toml
-billlens/_innit_.py
+billlens/__init__.py
 billlens.egg-info/PKG-INFO
 billlens.egg-info/SOURCES.txt
 billlens.egg-info/dependency_links.txt
