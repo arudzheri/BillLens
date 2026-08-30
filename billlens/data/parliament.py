@@ -1,6 +1,8 @@
 from typing import Any, Dict, List, Optional
 import httpx
 
+from billlens.data.keywords import extract_keywords
+
 
 class ParliamentAPIClient:
     BASE_URL = "https://members-api.parliament.uk/api"
@@ -127,14 +129,8 @@ class BillsAPIClient:
 
     @staticmethod
     def _extract_keyword(text: str) -> str:
-        """Extract main topic word from conversational queries."""
-        stop_words = {
-            "what", "laws", "have", "changed", "about", "the", "a", "an",
-            "is", "are", "tell", "me", "recent", "bills", "on", "in", "for"
-        }
-        words = [w.strip("?.,!").lower() for w in text.split()]
-        keywords = [w for w in words if w and w not in stop_words]
-        return keywords[0] if keywords else text.strip("?.,!")
+        """Extract the main search topic from a conversational query."""
+        return extract_keywords(text)
 
 
 # Backward compatibility aliases

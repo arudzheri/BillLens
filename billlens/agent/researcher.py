@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 
 from billlens.data.parliament import BillsAPIClient, ParliamentAPIClient
 from billlens.data.hansard import HansardClient
+from billlens.data.keywords import extract_keywords
 from billlens.models.evidence import Evidence
 
 
@@ -49,6 +50,16 @@ class BillLensResearcher:
         """
         evidence: List[Evidence] = []
         search_keyword = self._topic_from_query(query)
+
+        # If the question has no clear topic (e.g. "Who is the prime
+        # minister of the UK?"), there's nothing meaningful to search
+        # the Bills/Hansard APIs for -- searching on a leftover filler
+        # word (like "of" or "has") just returns noise. Skip straight
+        # to the fallback/general-knowledge path instead.
+        if not search_keyword:
+            if "hous" in query.lower():
+                return self.load_local_fallback(search_keyword)
+            return []
 
         # Search Parliamentary Bills API
         try:
@@ -128,11 +139,4 @@ class BillLensResearcher:
 
     @staticmethod
     def _topic_from_query(text: str) -> str:
-        stop_words = {
-            "what", "laws", "have", "changed", "about", "the", "a", "an",
-            "is", "are", "tell", "me", "recent", "bills", "on", "in", "for",
-            "who", "prime", "minister", "uk"
-        }
-        words = [w.strip("?.,!").lower() for w in text.split()]
-        keywords = [w for w in words if w and w not in stop_words]
-        return keywords[0] if keywords else text.strip("?.,!")
+        return extract_keywords(text)
