@@ -1,85 +1,55 @@
 """
 BillLens Orchestrator
-
-Central application service that connects planning, research,
-verification, and answer generation.
 """
 
 from __future__ import annotations
 
-import hashlib
-from typing import Optional
-
+from billlens.agent.answer import BillLensAnswerGenerator
+from billlens.agent.planner import BillLensPlanner
+from billlens.agent.researcher import BillLensResearcher
+from billlens.agent.verifier import BillLensVerifier, Claim
+from billlens.models.answer import AnswerResponse
 from billlens.models.question import QuestionRequest
-from billlens.models.answer import AnswerResponse, AnswerClaim, AnswerSource
-from billlens.models.evidence import Evidence
-
-from .planner import BillLensPlanner
-from .researcher import BillLensResearcher
-from .verifier import BillLensVerifier
-from .answer import BillLensAnswerGenerator
-from .claims import ClaimExtractor
 
 
 class BillLensOrchestrator:
-    """
-    Orchestrates the entire question-answering pipeline.
-    
-    Flow:
-    1. Plan: Parse question into research steps
-    2. Research: Execute steps and gather evidence
-    3. Extract: Convert evidence into claims
-    4. Verify: Check claims against evidence
-    5. Generate: Build final answer response
-    """
-    
+
     def __init__(
         self,
-        lex_base_url: Optional[str] = None,
-        parliament_base_url: Optional[str] = None,
-        timeout: float = 30.0,
-    ):
-        self.planner = BillLensPlanner()
-        self.researcher = BillLensResearcher(
-            lex_base_url=lex_base_url,
-            parliament_base_url=parliament_base_url,
-            timeout=timeout,
-        )
-        self.claim_extractor = ClaimExtractor()
-        self.verifier = BillLensVerifier()
-        self.answer_generator = BillLensAnswerGenerator()
-    
-    async def answer(
-        self,
-        request: QuestionRequest,
-    ) -> AnswerResponse:
-        """
-        Process a question and return a verified answer.
-        """
-        
-        # Step 1: Plan the research
-        plan = self.planner.create_plan(request.question)
-        
-        # Step 2: Execute research
+        planner: BillLensPlanner | None = None,
+        researcher: BillLensResearcher | None = None,
+        verifier: BillLensVerifier | None = None,
+        answer_generator: BillLensAnswerGenerator | None = None,
+        **kwargs,
+    ) -> None:
+        self.planner = planner or BillLensPlanner()
+        self.researcher = researcher or BillLensResearcher()
+        self.verifier = verifier or BillLensVerifier()
+        self.answer_generator = answer_generator or BillLensAnswerGenerator()
+
+    async def answer(self, request: QuestionRequest) -> AnswerResponse:
+        question = request.question
+
+        # 1. Plan research
+        plan = self.planner.create_plan(question)
+
+        # 2. Gather live evidence
         research_result = await self.researcher.research(plan)
-        
-        # Step 3: Extract claims from evidence
-        claims = self.claim_extractor.extract(
-            request.question,
-            research_result.evidence,
+
+        # 3. Create claims from evidence safely
+        claims = []
+        if research_result and research_result.evidence:
+            for item in research_result.evidence:
+                claim_text = item.content or item.title
+                if claim_text:
+                    claims.append(Claim(text=str(claim_text)))
+
+        # 4. Verify claims
+        verification = self.verifier.verify(claims, research_result.evidence)
+
+        # 5. Generate final structured response
+        return self.answer_generator.generate(
+            question=question,
+            verification=verification,
+            evidence=research_result.evidence,
         )
-        
-        # Step 4: Verify claims
-        verification = self.verifier.verify(
-            claims,
-            research_result.evidence,
-        )
-        
-        # Step 5: Generate answer
-        answer = self.answer_generator.generate(
-            request.question,
-            verification,
-            research_result.evidence,
-        )
-        
-        return answer

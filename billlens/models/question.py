@@ -1,26 +1,34 @@
+"""
+Question Models
+"""
+
 from __future__ import annotations
 
+from typing import List, Optional
 from pydantic import BaseModel, Field
 
 
 class QuestionRequest(BaseModel):
     """
-    User question sent to BillLens.
+    Request model for user questions.
     """
-
-    question: str = Field(
-        min_length=3,
-        max_length=2000,
-    )
+    question: str = Field(..., description="The natural language question to ask BillLens.")
+    context: Optional[str] = Field(None, description="Optional extra context for the query.")
 
 
 class QuestionResponse(BaseModel):
     """
-    Basic response metadata.
+    Response model wrapper for question queries.
     """
-
     question: str
+    status: str = "success"
 
+
+class QuestionPlan(BaseModel):
+    """
+    Plan model generated for answering a question.
+    """
+    original_question: str
     topic: str
-
-    confidence: float = 0.0
+    steps: List[str] = Field(default_factory=list)
+    

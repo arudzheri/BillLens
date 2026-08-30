@@ -1,111 +1,76 @@
+"""
+BillLens Researcher Agent
+"""
+
+from __future__ import annotations
+
 import json
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
-
-from billlens.data.lex import LexClient
 from billlens.data.parliament import BillsAPIClient, ParliamentAPIClient
 from billlens.models.evidence import Evidence
 
 
-class ResearchResult(BaseModel):
-    topic: str
-    evidence: list[Evidence] = Field(default_factory=list)
+@dataclass
+class ResearchResult:
+    query: str
+    evidence: List[Evidence]
 
 
 class BillLensResearcher:
+    """
+    Gathers evidence from UK Parliament APIs and local fallback datasets.
+    """
 
     def __init__(
         self,
-        lex_base_url: str | None = None,
-        parliament_base_url: str | None = None,
-        timeout: float = 30.0,
+        lex_base_url: Optional[str] = None,
+        parliament_base_url: Optional[str] = None,
+        **kwargs: Any,
     ) -> None:
-        self.lex_client = LexClient(base_url=lex_base_url, timeout=timeout)
-        self.members_client = ParliamentAPIClient()
-        self.bills_client = BillsAPIClient()
+        self.bills_client = BillsAPIClient(base_url=parliament_base_url)
+        self.members_client = ParliamentAPIClient(base_url=parliament_base_url)
 
-    def load_local_fallback(self, query: str) -> List[Evidence]:
-        """Load local backup dataset if live calls yield zero records."""
-        fallback_path = (
-            Path(__file__).parent.parent / "data" / "fallback_data.json"
-        )
-
-        if not fallback_path.exists():
-            return []
-
-        with open(fallback_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-
-        evidence: List[Evidence] = []
-        for item in data:
-            if isinstance(item, Evidence):
-                evidence.append(item)
-            elif isinstance(item, dict):
-                evidence.append(
-                    Evidence(
-                        title=item.get("title", "Fallback evidence"),
-                        content=item.get("text") or item.get("content") or "",
-                        source_type=item.get("source_type", "legislation"),
-                        url=item.get("url"),
-                        date=item.get("date"),
-                        relevance_score=float(item.get("score", 0.0)),
-                        metadata=item,
-                    )
-                )
-        return evidence
+    async def research(self, plan: Any) -> ResearchResult:
+        """
+        Execute research steps based on a plan.
+        """
+        query = getattr(plan, "original_question", str(plan))
+        evidence = await self.gather_evidence(query)
+        return ResearchResult(query=query, evidence=evidence)
 
     async def gather_evidence(self, query: str) -> List[Evidence]:
+        """
+        Gather evidence dynamically from live APIs.
+        """
         evidence: List[Evidence] = []
+        search_keyword = self._topic_from_query(query)
 
+        # Search Parliamentary Bills API
         try:
-            legislation = await self.lex_client.search(query, limit=5)
-            evidence.extend(legislation)
-        except Exception as err:
-            print(f"Lex API Error: {err}")
-
-        try:
-            bills = await self.bills_client.search_bills(search_term=query)
+            bills = await self.bills_client.search_bills(search_term=search_keyword)
             for bill in bills:
                 evidence.append(
                     Evidence(
                         title=bill.get("title", "Parliamentary bill"),
                         content=(
-                            f"{('Enacted Law (Act)' if bill.get('is_act') else 'Proposed Bill')}: "
+                            f"{'Enacted Law (Act)' if bill.get('is_act') else 'Proposed Bill'}: "
                             f"'{bill.get('title', 'Bill')}' is currently at stage "
                             f"'{bill.get('stage', 'Unknown stage')}' in the {bill.get('house', 'Unknown house')}."
                         ),
                         source_type="bill",
                         url=f"https://bills.parliament.uk/bills/{bill.get('id')}",
                         date=bill.get("last_updated"),
-                        relevance_score=0.7,
+                        relevance_score=0.8,
                         metadata=bill,
                     )
                 )
         except Exception as err:
             print(f"Bills API Error: {err}")
 
-        try:
-            members = await self.members_client.search_members(name=query)
-            for member in members:
-                evidence.append(
-                    Evidence(
-                        title=member.get("name") or "Member of Parliament",
-                        content=(
-                            f"{member.get('full_title', '')} represents "
-                            f"{member.get('constituency_or_house', '')} ({member.get('party', 'Unknown party')})."
-                        ).strip(),
-                        source_type="parliament",
-                        url=f"https://members-api.parliament.uk/api/Members/{member.get('id')}",
-                        date=None,
-                        relevance_score=0.6,
-                        metadata=member,
-                    )
-                )
-        except Exception as err:
-            print(f"Members API Error: {err}")
-
+        # Deduplicate
         deduped: List[Evidence] = []
         seen = set()
         for item in evidence:
@@ -115,47 +80,48 @@ class BillLensResearcher:
             seen.add(key)
             deduped.append(item)
 
-        if not deduped:
-            deduped = self.load_local_fallback(query)
+        # Fall back to static dataset ONLY if query specifically concerns housing
+        if not deduped and "hous" in query.lower():
+            deduped = self.load_local_fallback(search_keyword)
 
         return deduped
 
-    async def research(self, plan: Union[str, Any]) -> ResearchResult:
-        if hasattr(plan, "original_question") and hasattr(plan, "topic"):
-            topic = plan.topic
-            query = plan.original_question
-        elif isinstance(plan, str):
-            topic = self._topic_from_query(plan)
-            query = plan
-        else:
-            topic = getattr(plan, "topic", str(plan))
-            query = getattr(plan, "original_question", str(plan))
+    def load_local_fallback(self, topic: str = "") -> List[Evidence]:
+        """
+        Load fallback evidence from local JSON.
+        """
+        fallback_path = Path("billlens/data/fallback_data.json")
+        if not fallback_path.exists():
+            return []
 
-        evidence = await self.gather_evidence(query)
-        return ResearchResult(topic=topic, evidence=evidence)
+        try:
+            with open(fallback_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            evidence_items = []
+            for item in data.get("evidence", []):
+                evidence_items.append(
+                    Evidence(
+                        title=item.get("title", "Fallback Record"),
+                        content=item.get("content", ""),
+                        source_type=item.get("source_type", "legislation"),
+                        url=item.get("url", ""),
+                        date=item.get("date", ""),
+                        relevance_score=item.get("relevance_score", 0.7),
+                    )
+                )
+            return evidence_items
+        except Exception as err:
+            print(f"Error loading local fallback: {err}")
+            return []
 
     @staticmethod
-    def _topic_from_query(query: str) -> str:
-        normalized = query.strip().lower()
-        for prefix in (
-            "what has parliament actually done about ",
-            "what has parliament done about ",
-            "what has parliament done on ",
-            "what has parliament discussed about ",
-            "what has parliament discussed on ",
-            "tell me about ",
-            "what happened with ",
-        ):
-            if normalized.startswith(prefix):
-                return normalized[len(prefix):].strip(" ?.")
-        return normalized.strip(" ?.")
-
-    async def run(self, query: str) -> List[Evidence]:
-        return await self.gather_evidence(query)
-
-    async def search(self, query: str) -> List[Evidence]:
-        return await self.gather_evidence(query)
-
-
-# Backward compatibility alias
-Researcher = BillLensResearcher
+    def _topic_from_query(text: str) -> str:
+        stop_words = {
+            "what", "laws", "have", "changed", "about", "the", "a", "an",
+            "is", "are", "tell", "me", "recent", "bills", "on", "in", "for",
+            "who", "prime", "minister", "uk"
+        }
+        words = [w.strip("?.,!").lower() for w in text.split()]
+        keywords = [w for w in words if w and w not in stop_words]
+        return keywords[0] if keywords else text.strip("?.,!")
