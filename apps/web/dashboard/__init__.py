@@ -1,5 +1,15 @@
-"""
-BillLens applications: API and dashboard.
-"""
+from .schemas import (
+    DashboardResponse,
+    DashboardStats,
+    RecentActivity,
+)
 
-__version__ = "0.1.0"
+from .service import DashboardService
+
+
+__all__ = [
+    "DashboardResponse",
+    "DashboardStats",
+    "DashboardService",
+    "RecentActivity",
+]
