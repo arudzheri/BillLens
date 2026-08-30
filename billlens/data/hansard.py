@@ -27,9 +27,27 @@ class HansardClient:
         query: str,
         limit: int = 10,
     ) -> list[Evidence]:
+        """
+        Search Hansard/debate records via the underlying Parliament client.
+        """
+        try:
+            raw_results = await self.parliament.search(query=query)
+        except Exception as err:
+            print(f"Hansard search error: {err}")
+            return []
 
-        return await self.parliament.search(
-            query=query,
-            category="debates",
-            limit=limit,
-        )
+        evidence: list[Evidence] = []
+        for item in raw_results[:limit]:
+            title = item.get("title") or "Parliamentary debate"
+            content = item.get("description") or title
+            evidence.append(
+                Evidence(
+                    title=title,
+                    content=content,
+                    source_type="debate",
+                    url=item.get("url"),
+                    relevance_score=0.6,
+                    metadata=item,
+                )
+            )
+        return evidence

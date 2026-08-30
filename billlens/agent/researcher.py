@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from billlens.data.parliament import BillsAPIClient, ParliamentAPIClient
+from billlens.data.hansard import HansardClient
 from billlens.models.evidence import Evidence
 
 
@@ -32,6 +33,7 @@ class BillLensResearcher:
     ) -> None:
         self.bills_client = BillsAPIClient(base_url=parliament_base_url)
         self.members_client = ParliamentAPIClient(base_url=parliament_base_url)
+        self.hansard_client = HansardClient(self.members_client)
 
     async def research(self, plan: Any) -> ResearchResult:
         """
@@ -69,6 +71,15 @@ class BillLensResearcher:
                 )
         except Exception as err:
             print(f"Bills API Error: {err}")
+
+        # Search Hansard for debates on the topic
+        try:
+            debate_evidence = await self.hansard_client.search(
+                query=search_keyword, limit=10
+            )
+            evidence.extend(debate_evidence)
+        except Exception as err:
+            print(f"Hansard API Error: {err}")
 
         # Deduplicate
         deduped: List[Evidence] = []

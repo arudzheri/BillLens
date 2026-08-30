@@ -31,6 +31,7 @@ python -m pytest
 
 3. Start the API:
 ```bash
+fuser -k 8001/tcp
 python -m uvicorn apps.api.main:app --reload
 ```
 
