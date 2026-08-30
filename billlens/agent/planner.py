@@ -180,6 +180,8 @@ class BillLensPlanner:
         """
 
         prefixes = [
+            "what laws have changed about ",
+            "what laws changed about ",
             "what has parliament actually done about ",
             "what has parliament done about ",
             "what has parliament done on ",
@@ -189,8 +191,10 @@ class BillLensPlanner:
             "what happened with ",
         ]
 
-        for prefix in prefixes:
-            if question.startswith(prefix):
-                return question[len(prefix):].strip(" ?.")
+        cleaned = question.strip(" ?.").lower()
 
-        return question.strip(" ?.")
+        for prefix in prefixes:
+            if cleaned.startswith(prefix):
+                return cleaned[len(prefix):].strip(" ?.")
+
+        return cleaned

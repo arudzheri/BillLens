@@ -1,0 +1,127 @@
+"""
+BillLens Researcher Agent
+"""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from billlens.data.parliament import BillsAPIClient, ParliamentAPIClient
+from billlens.models.evidence import Evidence
+
+
+@dataclass
+class ResearchResult:
+    query: str
+    evidence: List[Evidence]
+
+
+class BillLensResearcher:
+    """
+    Gathers evidence from UK Parliament APIs and local fallback datasets.
+    """
+
+    def __init__(
+        self,
+        lex_base_url: Optional[str] = None,
+        parliament_base_url: Optional[str] = None,
+        **kwargs: Any,
+    ) -> None:
+        self.bills_client = BillsAPIClient(base_url=parliament_base_url)
+        self.members_client = ParliamentAPIClient(base_url=parliament_base_url)
+
+    async def research(self, plan: Any) -> ResearchResult:
+        """
+        Execute research steps based on a plan.
+        """
+        query = getattr(plan, "original_question", str(plan))
+        evidence = await self.gather_evidence(query)
+        return ResearchResult(query=query, evidence=evidence)
+
+    async def gather_evidence(self, query: str) -> List[Evidence]:
+        """
+        Gather evidence dynamically from live APIs.
+        """
+        evidence: List[Evidence] = []
+        search_keyword = self._topic_from_query(query)
+
+        # Search Parliamentary Bills API
+        try:
+            bills = await self.bills_client.search_bills(search_term=search_keyword)
+            for bill in bills:
+                evidence.append(
+                    Evidence(
+                        title=bill.get("title", "Parliamentary bill"),
+                        content=(
+                            f"{'Enacted Law (Act)' if bill.get('is_act') else 'Proposed Bill'}: "
+                            f"'{bill.get('title', 'Bill')}' is currently at stage "
+                            f"'{bill.get('stage', 'Unknown stage')}' in the {bill.get('house', 'Unknown house')}."
+                        ),
+                        source_type="bill",
+                        url=f"https://bills.parliament.uk/bills/{bill.get('id')}",
+                        date=bill.get("last_updated"),
+                        relevance_score=0.8,
+                        metadata=bill,
+                    )
+                )
+        except Exception as err:
+            print(f"Bills API Error: {err}")
+
+        # Deduplicate
+        deduped: List[Evidence] = []
+        seen = set()
+        for item in evidence:
+            key = item.url or item.title
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(item)
+
+        # Fall back to static dataset ONLY if query specifically concerns housing
+        if not deduped and "hous" in query.lower():
+            deduped = self.load_local_fallback(search_keyword)
+
+        return deduped
+
+    def load_local_fallback(self, topic: str = "") -> List[Evidence]:
+        """
+        Load fallback evidence from local JSON.
+        """
+        fallback_path = Path("billlens/data/fallback_data.json")
+        if not fallback_path.exists():
+            return []
+
+        try:
+            with open(fallback_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            evidence_items = []
+            for item in data.get("evidence", []):
+                evidence_items.append(
+                    Evidence(
+                        title=item.get("title", "Fallback Record"),
+                        content=item.get("content", ""),
+                        source_type=item.get("source_type", "legislation"),
+                        url=item.get("url", ""),
+                        date=item.get("date", ""),
+                        relevance_score=item.get("relevance_score", 0.7),
+                    )
+                )
+            return evidence_items
+        except Exception as err:
+            print(f"Error loading local fallback: {err}")
+            return []
+
+    @staticmethod
+    def _topic_from_query(text: str) -> str:
+        stop_words = {
+            "what", "laws", "have", "changed", "about", "the", "a", "an",
+            "is", "are", "tell", "me", "recent", "bills", "on", "in", "for",
+            "who", "prime", "minister", "uk"
+        }
+        words = [w.strip("?.,!").lower() for w in text.split()]
+        keywords = [w for w in words if w and w not in stop_words]
+        return keywords[0] if keywords else text.strip("?.,!")

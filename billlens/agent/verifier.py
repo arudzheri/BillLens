@@ -11,7 +11,7 @@ from typing import List
 
 from pydantic import BaseModel, Field
 
-from .researcher import Evidence
+from billlens.models.evidence import Evidence
 
 
 class Claim(BaseModel):
@@ -37,9 +37,18 @@ class VerificationResult(BaseModel):
     warnings: List[str] = Field(
         default_factory=list
     )
+    completed_steps: List[str] = Field(
+        default_factory=list
+    )
+    planned_steps: List[str] = Field(
+        default_factory=list
+    )
 
 
 class BillLensVerifier:
+    """
+    Verifies claims against evidence.
+    """
 
     MINIMUM_SCORE = 0.35
 
@@ -48,6 +57,9 @@ class BillLensVerifier:
         claims: List[Claim],
         evidence: List[Evidence],
     ) -> VerificationResult:
+        """
+        Verify claims against evidence.
+        """
 
         verified = []
         warnings = []
@@ -126,6 +138,7 @@ class BillLensVerifier:
         claim: Claim,
         evidence: List[Evidence],
     ) -> List[Evidence]:
+        """Find evidence supporting a claim."""
 
         claim_words = self._keywords(claim.text)
 
@@ -141,6 +154,10 @@ class BillLensVerifier:
                 len(claim_words & evidence_words)
                 / max(len(claim_words), 1)
             )
+
+            # Require meaningful keyword alignment for factual claims
+            if overlap < 0.3:
+                continue
 
             semantic_score = item.relevance_score
 
@@ -175,6 +192,7 @@ class BillLensVerifier:
 
     @staticmethod
     def _keywords(text: str) -> set[str]:
+        """Extract keywords from text."""
 
         stop_words = {
             "the",
@@ -194,6 +212,7 @@ class BillLensVerifier:
             "was",
             "were",
             "about",
+            "all",
         }
 
         return {
@@ -207,6 +226,7 @@ class BillLensVerifier:
     def _calculate_confidence(
         evidence: List[Evidence],
     ) -> float:
+        """Calculate confidence from evidence."""
 
         if not evidence:
             return 0.0
@@ -241,6 +261,7 @@ class BillLensVerifier:
         confidence: float,
         evidence: List[Evidence],
     ) -> str:
+        """Explain the confidence level."""
 
         if confidence >= 0.8:
             return (

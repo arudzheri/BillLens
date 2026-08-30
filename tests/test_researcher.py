@@ -4,9 +4,13 @@ from billlens.agent.planner import (
     BillLensPlanner,
 )
 
+from billlens.agent.orchestrator import BillLensOrchestrator
 from billlens.agent.researcher import (
     BillLensResearcher,
+    ResearchResult,
 )
+from billlens.models.evidence import Evidence
+from billlens.models.question import QuestionRequest
 
 
 class FakeResponse:
@@ -144,3 +148,32 @@ async def test_researcher_deduplicates_evidence(
     ]
 
     assert len(urls) == len(set(urls))
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_answer_uses_research_result(monkeypatch):
+    orchestrator = BillLensOrchestrator()
+
+    async def fake_research(self, plan):
+        return ResearchResult(
+            topic="housing",
+            evidence=[
+                Evidence(
+                    title="Housing Act",
+                    content="The Housing Act introduced new protections for renters.",
+                    source_type="legislation",
+                    url="https://example.com/housing",
+                    relevance_score=0.95,
+                )
+            ],
+        )
+
+    monkeypatch.setattr(BillLensResearcher, "research", fake_research)
+
+    answer = await orchestrator.answer(
+        QuestionRequest(question="What has Parliament done about housing?")
+    )
+
+    assert answer.question == "What has Parliament done about housing?"
+    assert answer.summary
+    assert answer.confidence >= 0

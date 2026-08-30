@@ -1,5 +1,4 @@
 services:
-
   api:
     build: .
     container_name: billlens-api
@@ -7,10 +6,13 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    environment:
+      - PYTHONUNBUFFERED=1
     depends_on:
-      - postgres
-      - redis
-      - qdrant
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
       - .:/app
     command: >
@@ -18,6 +20,34 @@ services:
       --host 0.0.0.0
       --port 8000
       --reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  dashboard:
+    build: .
+    container_name: billlens-dashboard
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - API_URL=http://api:8000
+    depends_on:
+      - api
+    volumes:
+      - .:/app
+    command: streamlit run apps/web/dashboard/app.py
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   postgres:
     image: postgres:16
@@ -30,12 +60,24 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U billlens"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7
     container_name: billlens-redis
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   qdrant:
     image: qdrant/qdrant:latest
@@ -45,7 +87,15 @@ services:
       - "6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
+    environment:
+      - QDRANT_API_KEY=test_key
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:
+  redis_data:
   qdrant_data:
