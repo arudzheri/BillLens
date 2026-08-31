@@ -1,0 +1,68 @@
+{
+  "evidence": [
+    {
+      "title": "Housing Act 2004",
+      "content": "The Housing Act 2004 reformed housing standards and introduced selective licensing in England. It requires landlords to meet minimum standards for rental properties.",
+      "source_type": "legislation",
+      "url": "https://legislation.gov.uk/ukpga/2004/34",
+      "date": "2004-07-18",
+      "relevance_score": 0.85
+    },
+    {
+      "title": "Planning and Infrastructure Act 2024",
+      "content": "Recent legislation aimed at speeding up housebuilding and delivering more homes. Includes changes to planning permissions and infrastructure requirements.",
+      "source_type": "legislation",
+      "url": "https://parliament.uk/bills/planning",
+      "date": "2024-01-15",
+      "relevance_score": 0.9
+    },
+    {
+      "title": "Homelessness Reduction Act 2017",
+      "content": "Legislation that extended protection for homeless people and placed new duties on local authorities to help those at risk of homelessness.",
+      "source_type": "legislation",
+      "url": "https://legislation.gov.uk/ukpga/2017/13",
+      "date": "2017-04-03",
+      "relevance_score": 0.8
+    },
+    {
+      "title": "Parliamentary Debate: Housing Crisis",
+      "content": "Members of Parliament discussed the ongoing housing shortage and affordability crisis. Debate covered solutions including building new homes, reforming planning rules, and supporting first-time buyers.",
+      "source_type": "debate",
+      "url": "https://hansard.parliament.uk/housing",
+      "date": "2024-06-12",
+      "relevance_score": 0.75
+    },
+    {
+      "title": "Committee Report: Future of Housing Policy",
+      "content": "A select committee published findings on housing policy effectiveness, examining planning reforms, developer contributions, and housing delivery targets across the UK.",
+      "source_type": "debate",
+      "url": "https://committees.parliament.uk/housing-report",
+      "date": "2024-03-20",
+      "relevance_score": 0.7
+    },
+    {
+      "title": "Renters Reform Bill 2024",
+      "content": "Proposed legislation to reform the private rental sector, including abolishing no-fault evictions and strengthening tenant protections.",
+      "source_type": "bill",
+      "url": "https://bills.parliament.uk/renters-reform",
+      "date": "2024-05-10",
+      "relevance_score": 0.82
+    },
+    {
+      "title": "Levelling Up Act 2023",
+      "content": "Legislation focused on regional development and housing as part of the levelling up agenda. Includes provisions for local authority housing and regeneration projects.",
+      "source_type": "legislation",
+      "url": "https://legislation.gov.uk/ukpga/2023/55",
+      "date": "2023-04-26",
+      "relevance_score": 0.78
+    },
+    {
+      "title": "Office for Budget Responsibility: Housing Forecasts",
+      "content": "Analysis of housing market trends, including house price forecasts, housing supply projections, and economic impacts of housing policy changes.",
+      "source_type": "report",
+      "url": "https://obr.uk/housing",
+      "date": "2024-08-15",
+      "relevance_score": 0.65
+    }
+  ]
+}
