@@ -51,46 +51,38 @@ class BillLensResearcher:
         evidence: List[Evidence] = []
         search_keyword = self._topic_from_query(query)
 
-        # If the question has no clear topic (e.g. "Who is the prime
-        # minister of the UK?"), there's nothing meaningful to search
-        # the Bills/Hansard APIs for -- searching on a leftover filler
-        # word (like "of" or "has") just returns noise. Skip straight
-        # to the fallback/general-knowledge path instead.
-        if not search_keyword:
-            if "hous" in query.lower():
-                return self.load_local_fallback(search_keyword)
-            return []
-
-        # Search Parliamentary Bills API
-        try:
-            bills = await self.bills_client.search_bills(search_term=search_keyword)
-            for bill in bills:
-                evidence.append(
-                    Evidence(
-                        title=bill.get("title", "Parliamentary bill"),
-                        content=(
-                            f"{'Enacted Law (Act)' if bill.get('is_act') else 'Proposed Bill'}: "
-                            f"'{bill.get('title', 'Bill')}' is currently at stage "
-                            f"'{bill.get('stage', 'Unknown stage')}' in the {bill.get('house', 'Unknown house')}."
-                        ),
-                        source_type="bill",
-                        url=f"https://bills.parliament.uk/bills/{bill.get('id')}",
-                        date=bill.get("last_updated"),
-                        relevance_score=0.8,
-                        metadata=bill,
+        # Try to search with extracted keywords
+        if search_keyword:
+            # Search Parliamentary Bills API
+            try:
+                bills = await self.bills_client.search_bills(search_term=search_keyword)
+                for bill in bills:
+                    evidence.append(
+                        Evidence(
+                            title=bill.get("title", "Parliamentary bill"),
+                            content=(
+                                f"{'Enacted Law (Act)' if bill.get('is_act') else 'Proposed Bill'}: "
+                                f"'{bill.get('title', 'Bill')}' is currently at stage "
+                                f"'{bill.get('stage', 'Unknown stage')}' in the {bill.get('house', 'Unknown house')}."
+                            ),
+                            source_type="bill",
+                            url=f"https://bills.parliament.uk/bills/{bill.get('id')}",
+                            date=bill.get("last_updated"),
+                            relevance_score=0.8,
+                            metadata=bill,
+                        )
                     )
-                )
-        except Exception as err:
-            print(f"Bills API Error: {err}")
+            except Exception as err:
+                print(f"Bills API Error: {err}")
 
-        # Search Hansard for debates on the topic
-        try:
-            debate_evidence = await self.hansard_client.search(
-                query=search_keyword, limit=10
-            )
-            evidence.extend(debate_evidence)
-        except Exception as err:
-            print(f"Hansard API Error: {err}")
+            # Search Hansard for debates on the topic
+            try:
+                debate_evidence = await self.hansard_client.search(
+                    query=search_keyword, limit=10
+                )
+                evidence.extend(debate_evidence)
+            except Exception as err:
+                print(f"Hansard API Error: {err}")
 
         # Deduplicate
         deduped: List[Evidence] = []
@@ -102,9 +94,9 @@ class BillLensResearcher:
             seen.add(key)
             deduped.append(item)
 
-        # Fall back to static dataset ONLY if query specifically concerns housing
-        if not deduped and "hous" in query.lower():
-            deduped = self.load_local_fallback(search_keyword)
+        # If no evidence found, try fallback dataset
+        if not deduped:
+            deduped = self.load_local_fallback(search_keyword or query)
 
         return deduped
 
