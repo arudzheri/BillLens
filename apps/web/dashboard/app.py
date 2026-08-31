@@ -16,8 +16,15 @@ st.set_page_config(
 st.title("🏛️ BillLens")
 st.markdown("**AI-powered parliamentary intelligence for everyone**")
 
-# Get API URL from environment
+# Get API URL from environment, with fallback options
 API_URL = os.getenv("API_URL", "http://localhost:8000")
+
+# Try alternative addresses if localhost fails
+FALLBACK_URLS = [
+    API_URL,
+    "http://127.0.0.1:8000",
+    "http://host.docker.internal:8000",  # For Docker on Mac/Windows
+]
 
 # Session state
 if "answer" not in st.session_state:
@@ -25,6 +32,9 @@ if "answer" not in st.session_state:
 
 if "loading" not in st.session_state:
     st.session_state.loading = False
+
+if "api_url" not in st.session_state:
+    st.session_state.api_url = API_URL
 
 # Sidebar
 with st.sidebar:
@@ -35,6 +45,16 @@ with st.sidebar:
     """)
     
     st.markdown("---")
+    
+    # API URL configuration
+    st.subheader("Configuration")
+    custom_api_url = st.text_input(
+        "API URL:",
+        value=st.session_state.api_url,
+        help="Enter the API endpoint (e.g., http://localhost:8000)"
+    )
+    if custom_api_url:
+        st.session_state.api_url = custom_api_url
     
     if st.button("Clear History"):
         st.session_state.answer = None
@@ -65,20 +85,47 @@ if submit_button and question:
         st.session_state.loading = True
         
         try:
-            with httpx.Client() as client:
-                response = client.post(
-                    f"{API_URL}/api/v1/questions",
-                    json={"question": question},
-                    timeout=60.0,
+            # Try to find working API URL
+            api_endpoint = None
+            last_error = None
+            
+            for url in [st.session_state.api_url] + FALLBACK_URLS:
+                try:
+                    with httpx.Client(timeout=10.0) as client:
+                        # Test connection first
+                        health_response = client.get(f"{url}/health")
+                        if health_response.status_code == 200:
+                            api_endpoint = url
+                            break
+                except Exception as e:
+                    last_error = e
+                    continue
+            
+            if not api_endpoint:
+                st.error(
+                    f"Could not reach API server. Tried:\n"
+                    f"- {st.session_state.api_url}\n"
+                    f"- http://127.0.0.1:8000\n"
+                    f"- http://host.docker.internal:8000\n\n"
+                    f"Last error: {last_error}\n\n"
+                    f"**Make sure the API is running:**\n"
+                    f"`python -m uvicorn apps.api.main:app --reload`"
                 )
-                
-                if response.status_code == 200:
-                    st.session_state.answer = response.json()
-                else:
-                    st.error(
-                        f"Error: {response.status_code} - "
-                        f"{response.text}"
+            else:
+                with httpx.Client() as client:
+                    response = client.post(
+                        f"{api_endpoint}/api/v1/questions",
+                        json={"question": question},
+                        timeout=60.0,
                     )
+                    
+                    if response.status_code == 200:
+                        st.session_state.answer = response.json()
+                    else:
+                        st.error(
+                            f"Error: {response.status_code} - "
+                            f"{response.text}"
+                        )
         
         except httpx.TimeoutException:
             st.error("Request timed out. Please try again.")
