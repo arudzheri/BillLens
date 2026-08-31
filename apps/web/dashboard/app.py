@@ -3,6 +3,8 @@ BillLens Streamlit Dashboard
 """
 
 import os
+import sys
+import asyncio
 import httpx
 import streamlit as st
 
@@ -36,6 +38,22 @@ if "loading" not in st.session_state:
 if "api_url" not in st.session_state:
     st.session_state.api_url = API_URL
 
+if "api_status" not in st.session_state:
+    st.session_state.api_status = None
+
+# Function to find working API URL
+def find_working_api():
+    """Try to find a working API endpoint."""
+    for url in [st.session_state.api_url] + FALLBACK_URLS:
+        try:
+            with httpx.Client(timeout=5.0) as client:
+                response = client.get(f"{url}/health")
+                if response.status_code == 200:
+                    return url
+        except Exception:
+            continue
+    return None
+
 # Sidebar
 with st.sidebar:
     st.header("About")
@@ -45,6 +63,20 @@ with st.sidebar:
     """)
     
     st.markdown("---")
+    
+    # API Status
+    st.subheader("API Status")
+    if st.button("Check API Connection"):
+        working_api = find_working_api()
+        if working_api:
+            st.session_state.api_status = working_api
+            st.success(f"✅ Connected to {working_api}")
+        else:
+            st.session_state.api_status = None
+            st.error("❌ Cannot reach API server. Make sure it's running on port 8000")
+    
+    if st.session_state.api_status:
+        st.info(f"Using API: {st.session_state.api_status}")
     
     # API URL configuration
     st.subheader("Configuration")
@@ -85,67 +117,62 @@ if submit_button and question:
         st.session_state.loading = True
         
         try:
-            # Try to find working API URL
-            api_endpoint = None
-            last_error = None
+            # Try to find working API URL if not already known
+            if not st.session_state.api_status:
+                st.session_state.api_status = find_working_api()
             
-            for url in [st.session_state.api_url] + FALLBACK_URLS:
-                try:
-                    with httpx.Client(timeout=10.0) as client:
-                        # Test connection first
-                        health_response = client.get(f"{url}/health")
-                        if health_response.status_code == 200:
-                            api_endpoint = url
-                            break
-                except Exception as e:
-                    last_error = e
-                    continue
+            api_endpoint = st.session_state.api_status
             
             if not api_endpoint:
                 st.error(
-                    f"Could not reach API server. Tried:\n"
-                    f"- {st.session_state.api_url}\n"
-                    f"- http://127.0.0.1:8000\n"
-                    f"- http://host.docker.internal:8000\n\n"
-                    f"Last error: {last_error}\n\n"
-                    f"**Make sure the API is running:**\n"
-                    f"`python -m uvicorn apps.api.main:app --reload`"
+                    "❌ **Could not connect to API server.**\n\n"
+                    "Please make sure the API is running:\n\n"
+                    "```bash\n"
+                    "python -m uvicorn apps.api.main:app --reload --host 0.0.0.0 --port 8000\n"
+                    "```\n\n"
+                    "Then refresh this page and try again."
                 )
             else:
-                with httpx.Client() as client:
-                    response = client.post(
-                        f"{api_endpoint}/api/v1/questions",
-                        json={"question": question},
-                        timeout=60.0,
-                    )
-                    
-                    if response.status_code == 200:
-                        st.session_state.answer = response.json()
-                    else:
-                        st.error(
-                            f"Error: {response.status_code} - "
-                            f"{response.text}"
-                        )
-        
-        except httpx.TimeoutException:
-            st.error("Request timed out. Please try again.")
-        except Exception as e:
-            st.error(f"Error: {str(e)}")
+                with st.spinner("🔍 Searching parliamentary records..."):
+                    try:
+                        with httpx.Client(timeout=120.0) as client:
+                            response = client.post(
+                                f"{api_endpoint}/api/v1/questions",
+                                json={"question": question},
+                            )
+                            
+                            if response.status_code == 200:
+                                result = response.json()
+                                st.session_state.answer = result
+                                st.success("✅ Answer generated!")
+                            elif response.status_code == 405:
+                                st.error(
+                                    "❌ **Method Not Allowed (405)**\n\n"
+                                    "The API endpoint is not responding correctly. "
+                                    "Make sure you're using the correct API URL."
+                                )
+                            else:
+                                st.error(
+                                    f"❌ **Error {response.status_code}**\n\n"
+                                    f"```\n{response.text}\n```"
+                                )
+                    except httpx.TimeoutException:
+                        st.error("⏱️ **Request timed out.** The API is taking too long to respond. Try again.")
+                    except Exception as e:
+                        st.error(f"❌ **Error:** {str(e)}")
         
         finally:
             st.session_state.loading = False
 
 # Display answer
-if st.session_state.loading:
-    st.spinner("Searching parliamentary records...")
-
 if st.session_state.answer:
     answer = st.session_state.answer
     
     # Summary
     st.markdown("---")
     st.subheader("Summary")
-    st.markdown(answer.get("summary", ""))
+    summary = answer.get("summary", "No summary available.")
+    st.markdown(summary)
     
     # Confidence and warnings
     col1, col2 = st.columns(2)
