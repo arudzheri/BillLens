@@ -32,6 +32,7 @@ Dynamic: license-file
 
 AI-powered parliamentary intelligence for everyone.
 
+
 ## Overview
 
 BillLens helps citizens understand what UK Parliament has done, debated, or voted on. It combines parliamentary records from multiple sources, verifies claims against evidence, and provides confidence scores for transparency.
@@ -60,6 +61,7 @@ python -m pytest
 
 3. Start the API:
 ```bash
+fuser -k 8001/tcp
 python -m uvicorn apps.api.main:app --reload
 ```
 
