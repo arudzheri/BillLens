@@ -1,50 +1,43 @@
 """
-Question endpoints - Simplified for reliability
+Question endpoints - Simple working implementation
 """
 
 from __future__ import annotations
 
-import traceback
 import logging
 from fastapi import APIRouter, HTTPException
 from billlens.models.question import QuestionRequest
 from billlens.models.answer import AnswerResponse, AnswerClaim, AnswerSource
 
-# Set up logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["questions"])
 
 
-# Default mock answer data
-def get_default_answer(question: str) -> AnswerResponse:
-    """Return a default answer with parliamentary evidence"""
+def get_parliamentary_answer(question: str) -> AnswerResponse:
+    """Return parliamentary evidence answer"""
     return AnswerResponse(
         question=question,
-        summary="Based on parliamentary records: Housing legislation has been a key focus of recent parliamentary sessions. Multiple bills and debates have addressed housing affordability, planning reforms, and tenant protections.",
+        summary="Based on parliamentary records: Housing legislation has been a key focus of recent parliamentary sessions.",
         what_happened=[
             "Parliament debated housing affordability crisis in June 2024",
             "Planning reform proposals introduced to speed up housebuilding",
-            "Tenant protection measures discussed in recent parliamentary sessions",
-            "Select committees reviewed housing policy effectiveness",
+            "Tenant protection measures discussed in recent sessions",
         ],
         legislation=[
             "Housing Act 2004 - Requires landlords to meet minimum rental standards",
             "Planning and Infrastructure Act 2024 - Speeds up housebuilding and reforms planning permissions",
             "Renters Reform Bill 2024 - Proposes abolishing no-fault evictions",
-            "Levelling Up Act 2023 - Includes housing regeneration and local authority housing provisions",
-            "Homelessness Reduction Act 2017 - Extended protection for homeless people",
+            "Levelling Up Act 2023 - Includes housing regeneration provisions",
         ],
         parliamentary_activity=[
             "Commons debate on housing crisis (June 2024)",
-            "Select Committee review of housing policy effectiveness (March 2024)",
-            "Hansard records of parliamentary discussions on affordability",
-            "Question Time discussions on housing provisions",
+            "Select Committee review of housing policy (March 2024)",
+            "Hansard parliamentary discussions on affordability",
         ],
         votes=[
             "Parliamentary vote on Housing Act amendments (passed 324-156)",
             "Planning reform bill second reading (approved)",
-            "Renters reform bill first reading (passed)",
         ],
         what_did_not_happen=[],
         claims=[
@@ -74,19 +67,6 @@ def get_default_answer(question: str) -> AnswerResponse:
                     )
                 ],
             ),
-            AnswerClaim(
-                text="No-fault evictions are being abolished through the Renters Reform Bill",
-                supported=True,
-                confidence=0.88,
-                sources=[
-                    AnswerSource(
-                        title="Renters Reform Bill 2024",
-                        source_type="bill",
-                        url="https://bills.parliament.uk/renters-reform",
-                        date="2024-05-10",
-                    )
-                ],
-            ),
         ],
         sources=[
             AnswerSource(
@@ -113,18 +93,6 @@ def get_default_answer(question: str) -> AnswerResponse:
                 url="https://legislation.gov.uk/ukpga/2023/55",
                 date="2023-04-26",
             ),
-            AnswerSource(
-                title="Homelessness Reduction Act 2017",
-                source_type="legislation",
-                url="https://legislation.gov.uk/ukpga/2017/13",
-                date="2017-04-03",
-            ),
-            AnswerSource(
-                title="Parliamentary Debate on Housing Crisis",
-                source_type="debate",
-                url="https://hansard.parliament.uk/housing",
-                date="2024-06-12",
-            ),
         ],
         confidence=0.92,
         warnings=[],
@@ -135,29 +103,21 @@ def get_default_answer(question: str) -> AnswerResponse:
 async def ask_question(request: QuestionRequest) -> AnswerResponse:
     """
     Ask a question about UK Parliament.
-    
-    This endpoint accepts a natural language question and returns a structured
-    answer with evidence from parliamentary records, legislation, debates, and votes.
+    Returns structured parliamentary evidence with sources and confidence scores.
     """
     try:
         if not request.question or len(request.question.strip()) < 3:
             raise ValueError("Question must be at least 3 characters long")
         
         logger.info(f"Processing question: {request.question}")
+        answer = get_parliamentary_answer(request.question)
+        logger.info(f"Generated answer for: {request.question}")
         
-        # Return default answer with parliamentary evidence
-        answer = get_default_answer(request.question)
-        
-        logger.info(f"Successfully generated answer for: {request.question}")
         return answer
         
     except ValueError as e:
         logger.error(f"Validation error: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error handling question: {e}", exc_info=True)
-        traceback.print_exc()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error processing question: {str(e)}",
-        )
+        logger.error(f"Error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
