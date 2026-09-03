@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from billlens.mps.schemas import (
+from apps.web.mps.schemas import (
     MPSearchRequest,
     MPSearchResponse,
     MPSummary,
 )
-from billlens.services.mps_service import (
+from apps.api.services.mps_service import (
     MPsService,
 )
 

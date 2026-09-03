@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from billlens.legislation.schemas import (
+from apps.web.legislation.schemas import (
     LegislationDetailResponse,
     LegislationSearchRequest,
     LegislationSearchResponse,
 )
-from billlens.services.legislation_service import (
+from apps.api.services.legislation_service import (
     LegislationService,
 )
 

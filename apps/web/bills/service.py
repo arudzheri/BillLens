@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from billlens.bills.schemas import (
+from apps.web.bills.schemas import (
     BillDetailResponse,
     BillSearchResponse,
     BillSearchRequest,

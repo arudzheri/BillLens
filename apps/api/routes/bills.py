@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from billlens.bills.schemas import (
+from apps.web.bills.schemas import (
     BillDetailResponse,
     BillSearchRequest,
     BillSearchResponse,
 )
-from billlens.services.bills_service import (
+from apps.api.services.bills_service import (
     BillsService,
 )
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from billlens.legislation.schemas import (
+from apps.web.legislation.schemas import (
     LegislationDetailResponse,
     LegislationSearchRequest,
     LegislationSearchResponse,

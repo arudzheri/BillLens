@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from billlens.ask.schemas import AskRequest, AskResponse, AskSource
+from apps.web.ask.schemas import AskRequest, AskResponse, AskSource
 
 
 class AskService:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from billlens.dashboard.schemas import (
+from apps.web.dashboard.schemas import (
     DashboardResponse,
     DashboardStats,
     RecentActivity,

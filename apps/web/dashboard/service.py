@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from billlens.dashboard.schemas import (
+from apps.web.dashboard.schemas import (
     DashboardResponse,
     DashboardStats,
     RecentActivity,

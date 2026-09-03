@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from billlens.legislation.schemas import (
+from apps.web.legislation.schemas import (
     LegislationDetailResponse,
     LegislationSearchRequest,
     LegislationSearchResponse,

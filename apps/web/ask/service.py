@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from billlens.ask.schemas import (
+from apps.web.ask.schemas import (
     AskRequest,
     AskResponse,
     AskSource,

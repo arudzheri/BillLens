@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from billlens.bills.schemas import (
+from apps.web.bills.schemas import (
     BillDetailResponse,
     BillSearchRequest,
     BillSearchResponse,

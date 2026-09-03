@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from billlens.ask.schemas import (
+from apps.web.ask.schemas import (
     AskRequest,
     AskResponse,
 )
-from billlens.services.ask_service import AskService
+from apps.api.services.ask_service import AskService
 
 
 router = APIRouter(

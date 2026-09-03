@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 
-from billlens.dashboard.schemas import (
+from apps.web.dashboard.schemas import (
     DashboardResponse,
 )
-from billlens.services.dashboard_service import (
+from apps.api.services.dashboard_service import (
     DashboardService,
 )
 

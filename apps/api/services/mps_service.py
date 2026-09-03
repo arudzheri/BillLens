@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from billlens.mps.schemas import (
+from apps.web.mps.schemas import (
     MPSearchRequest,
     MPSearchResponse,
     MPSummary,
