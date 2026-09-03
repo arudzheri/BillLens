@@ -1,166 +1,150 @@
 # BillLens
 
-AI-powered parliamentary intelligence for everyone.
-
+AI-powered parliamentary intelligence for understanding UK legislation, debates, bills, votes, and MPs.
 
 ## Overview
 
-BillLens helps citizens understand what UK Parliament has done, debated, or voted on. It combines parliamentary records from multiple sources, verifies claims against evidence, and provides confidence scores for transparency.
+BillLens researches parliamentary questions using data from UK Parliament and UK legislation sources. It returns evidence-backed answers with citations, confidence scores, and warnings when claims are not sufficiently supported.
 
 ## Features
 
-- **Multi-source research**: Searches bills, debates, votes, legislation, and MPs
-- **Evidence verification**: Checks claims against retrieved evidence with confidence scoring
-- **Transparent results**: Shows all sources, warnings, and unverified claims
-- **API & Dashboard**: REST API for integration, web dashboard for exploration
-- **Caching & persistence**: Redis cache and PostgreSQL database
+- Multi-source research across bills, debates, legislation, votes, and MPs
+- Deterministic research planning and evidence collection
+- Hybrid retrieval with lexical and semantic-search support
+- Claim extraction and evidence verification
+- Source citations, confidence scores, and warnings
+- FastAPI REST API
+- Streamlit dashboard
+- PostgreSQL persistence
+- Redis caching
+- Docker Compose development environment
+
+## Project Structure
+
+```text
+billlens/
+├── agent/          # Planning, research, verification, and answer generation
+├── data/           # Parliament, bills, Hansard, legislation, votes, and MP clients
+├── models/         # Domain models
+├── persistence/    # Database and repository layers
+└── retrieval/      # Search and citation utilities
+
+apps/
+├── api/             # FastAPI application
+└── web/dashboard/   # Streamlit dashboard
+
+tests/               # Automated tests
+docs/                # API, architecture, and development documentation
+```
 
 ## Quick Start
 
-### Local Development
+### Install
 
-1. Install dependencies:
 ```bash
 pip install -e .
 ```
 
-2. Run tests:
+### Configure
+
+Copy the example environment file and adjust values as needed:
+
+```bash
+cp .env.example .env
+```
+
+The application can run with local API services by default. PostgreSQL, Redis, and Qdrant are configured for the Docker Compose setup.
+
+### Run the tests
+
 ```bash
 python -m pytest
 ```
 
-3. Start the API:
+### Run the API
+
 ```bash
-fuser -k 8001/tcp
-python -m uvicorn apps.api.main:app --reload
+python -m uvicorn apps.api.main:app --reload --port 8000
 ```
 
-API available at `http://localhost:8000`
+The API is available at:
 
-### Dashboard
+- API: http://localhost:8000
+- Swagger UI: http://localhost:8000/docs
+- Health check: http://localhost:8000/health
+
+### Run the dashboard
 
 In a separate terminal:
+
 ```bash
 streamlit run apps/web/dashboard/app.py
 ```
 
-Dashboard available at `http://localhost:8501`
+The dashboard is available at http://localhost:8501.
 
-## Project Structure
+### Run with Docker Compose
 
+```bash
+docker compose up --build
 ```
-billlens/
-├── agent/              # Planning, research, verification, answer generation
-├── data/               # Parliament, Lex, bills, MPs, votes clients
-├── models/             # Pydantic domain models
-├── retrieval/          # BM25, semantic, hybrid search
-├── persistence/        # Database and cache layers
-apps/
-├── api/                # FastAPI application
-└── web/dashboard/      # Streamlit dashboard
-tests/                  # Test suite
-docs/                   # Architecture and API docs
+
+Stop the services with:
+
+```bash
+docker compose down
 ```
 
 ## API Usage
 
-### Ask a Question
+Ask a question:
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/questions \
   -H "Content-Type: application/json" \
-  -d '{"question": "What laws have changed about housing?"}'
+  -d '{"question":"What laws have changed about housing?"}'
 ```
 
-Response:
-```json
-{
-  "question": "What laws have changed about housing?",
-  "summary": "...",
-  "what_happened": [...],
-  "legislation": [...],
-  "parliamentary_activity": [...],
-  "votes": [...],
-  "what_did_not_happen": [...],
-  "claims": [...],
-  "sources": [...],
-  "confidence": 0.75,
-  "warnings": [...]
-}
-```
-
-### Health Check
-
-```bash
-curl http://localhost:8000/health
-```
+The response includes an answer, parliamentary activity, legislation, votes, claims, source URLs, confidence, and warnings.
 
 ## Architecture
 
-```
+```text
 Question
-    ↓
-Planner (identify research steps)
-    ↓
-Researcher (execute steps, gather evidence)
-    ↓
-ClaimExtractor (convert evidence to claims)
-    ↓
-Verifier (check claims against evidence)
-    ↓
-AnswerGenerator (format final response)
-    ↓
-Answer (with sources, confidence, warnings)
+   ↓
+Planner
+   ↓
+Researcher
+   ↓
+Claim Extractor
+   ↓
+Verifier
+   ↓
+Answer Generator
+   ↓
+Evidence-backed Answer
 ```
 
 ## Data Sources
 
-- **Parliament API**: Bills, debates, votes, MPs
-- **Lex API**: UK legislation
-- **Hansard**: Parliamentary debates (via Parliament API)
+- UK Parliament Members API
+- UK Parliament Bills API
+- Hansard and parliamentary debate data
+- UK legislation at legislation.gov.uk
 
-## Confidence Scoring
+## Configuration
 
-Confidence is calculated from:
-- **Lexical overlap**: Keyword matching between claim and evidence
-- **Semantic relevance**: Retrieved evidence relevance score
-- **Source diversity**: Multiple sources increase confidence
-- **Minimum threshold**: 0.35 to be considered supported
+See `.env.example` for the complete configuration. Important variables include:
 
-## Limitations
-
-- Deterministic planning (no LLM-based reasoning yet)
-- BM25 search only (Qdrant vector store not yet integrated)
-- No amendment tracking
-- Limited MP biographical data
-
-## Testing
-
-```bash
-# Run all tests
-python -m pytest
-
-# With coverage
-python -m pytest --cov=billlens --cov=apps
-
-# Linting
-ruff check .
-
-# Type checking
-mypy billlens apps
-```
-
-## Environment Variables
-
-See `.env.example` for all options:
-
-```
-PARLIAMENT_API_URL      # Parliament API endpoint
-LEX_API_URL             # Lex (legislation) API endpoint
-DATABASE_URL            # PostgreSQL connection string
-REDIS_URL               # Redis connection string
-API_URL                 # API base URL (for dashboard)
-EMBEDDING_MODEL         # Sentence Transformers model name
+```text
+API_URL
+DASHBOARD_API_URL
+PARLIAMENT_BASE_URL
+LEX_BASE_URL
+DATABASE_URL
+REDIS_URL
+QDRANT_URL
+EMBEDDING_MODEL
 ```
 
 ## Documentation
@@ -170,19 +154,13 @@ EMBEDDING_MODEL         # Sentence Transformers model name
 - [Development Guide](docs/development.md)
 - [Data Sources](docs/data-sources.md)
 - [Retrieval System](docs/retrieval.md)
-- [Verification & Confidence](docs/verification.md)
+- [Verification and Confidence](docs/verification.md)
 
-## Status
+## Project Status
 
-**MVP (Minimum Viable Product)**
+BillLens is an MVP. The current implementation includes the question-answering pipeline, evidence verification, REST API, Streamlit dashboard, persistence, caching, and retrieval components.
 
-The project is functionally complete with:
-- Full question-answering pipeline
-- Evidence verification
-- REST API
-- Web dashboard
-- Database persistence
-- Redis caching
+Known limitations include deterministic planning, limited amendment tracking, and incomplete MP biographical data.
 
 ## License
 
