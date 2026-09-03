@@ -1,9 +1,7 @@
-```python
-"""
-BillLens Streamlit Dashboard
-"""
+"""BillLens Streamlit dashboard."""
 
 import os
+from typing import Any
 
 import httpx
 import streamlit as st
@@ -17,7 +15,7 @@ st.set_page_config(
 
 
 def get_api_url() -> str:
-    """Get the API URL from environment variables or Streamlit secrets."""
+    """Read the public API URL from environment variables or Streamlit secrets."""
     api_url = os.getenv("API_URL") or os.getenv("DASHBOARD_API_URL")
 
     if not api_url:
@@ -28,72 +26,77 @@ def get_api_url() -> str:
         except Exception:
             api_url = None
 
-    return (api_url or "").rstrip("/")
+    return (api_url or "").strip().rstrip("/")
+
+
+def display_items(items: list[Any], empty_message: str) -> None:
+    """Display API result items."""
+    if not items:
+        st.info(empty_message)
+        return
+
+    for item in items:
+        if isinstance(item, dict):
+            title = item.get("title") or item.get("name") or item.get(
+                "text"
+            )
+            description = item.get("description") or item.get("summary")
+
+            if title:
+                st.markdown(f"**{title}**")
+            if description:
+                st.write(description)
+
+            url = item.get("url") or item.get("source_url")
+            if url:
+                st.markdown(f"[View source]({url})")
+        else:
+            st.markdown(f"• {item}")
 
 
 API_URL = get_api_url()
 
 st.title("🏛️ BillLens")
-st.markdown("**AI-powered parliamentary intelligence for everyone**")
+st.caption("AI-powered parliamentary intelligence for everyone.")
 
 if not API_URL:
-    st.error(
-        "The API is not configured. Add API_URL to the Streamlit Cloud "
-        "secrets or environment variables."
-    )
+    st.error("The API is not configured.")
     st.code('API_URL = "https://your-public-api-url.example.com"')
+    st.info(
+        "Add API_URL in Streamlit Cloud → Settings → Secrets, "
+        "then reboot the app."
+    )
     st.stop()
-
-
-if "answer" not in st.session_state:
-    st.session_state.answer = None
 
 
 with st.sidebar:
     st.header("About")
-    st.markdown(
-        """
-        BillLens helps you understand what Parliament has done,
-        debated, or voted on, with verified evidence and confidence scores.
-        """
+    st.write(
+        "BillLens helps you understand UK parliamentary activity "
+        "using evidence and source citations."
     )
 
-    st.markdown("---")
-
-    if st.button("Clear History"):
-        st.session_state.answer = None
+    if st.button("Clear answer"):
+        st.session_state.pop("answer", None)
         st.rerun()
 
 
-col1, col2 = st.columns([3, 1])
+question = st.text_input(
+    "Ask a question about UK Parliament",
+    placeholder="What laws have changed about housing?",
+    max_chars=2000,
+)
 
-with col1:
-    question = st.text_input(
-        "Ask about UK Parliament:",
-        placeholder="e.g., What laws have changed about housing?",
-        max_chars=2000,
-    )
-
-with col2:
-    submit_button = st.button(
-        "Search",
-        use_container_width=True,
-        type="primary",
-    )
-
-
-if submit_button:
+if st.button("Search", type="primary"):
     if not question.strip():
-        st.error("Please enter a question.")
-    elif len(question.strip()) < 3:
-        st.error("Question must be at least 3 characters long.")
+        st.warning("Please enter a question.")
     else:
         try:
             with st.spinner("Searching parliamentary records..."):
                 response = httpx.post(
                     f"{API_URL}/api/v1/questions",
                     json={"question": question.strip()},
-                    timeout=60.0,
+                    timeout=90.0,
                     follow_redirects=True,
                 )
 
@@ -101,156 +104,114 @@ if submit_button:
                 st.session_state.answer = response.json()
             else:
                 st.error(
-                    f"The API returned HTTP {response.status_code}."
+                    f"API error: HTTP {response.status_code} "
+                    f"from `{API_URL}`"
                 )
+                st.code(response.text[:2000])
 
         except httpx.TimeoutException:
-            st.error("The request timed out. Please try again.")
-        except httpx.RequestError:
-            st.error(
-                "Could not connect to the API server. "
-                "Please try again later."
-            )
+            st.error("The API request timed out. Please try again.")
+        except httpx.RequestError as error:
+            st.error(f"Could not connect to API: {API_URL}")
+            st.caption(str(error))
         except ValueError:
-            st.error("The API returned an invalid response.")
+            st.error("The API returned invalid JSON.")
 
 
-if st.session_state.answer:
-    answer = st.session_state.answer
+answer = st.session_state.get("answer")
 
-    st.markdown("---")
+if answer:
+    st.divider()
     st.subheader("Summary")
-    st.markdown(answer.get("summary", "No summary available."))
+    st.write(answer.get("summary") or "No summary available.")
 
-    col1, col2 = st.columns(2)
-
-    with col1:
-        confidence = answer.get("confidence", 0.0) or 0.0
-        confidence_pct = int(float(confidence) * 100)
-        st.metric("Confidence Level", f"{confidence_pct}%")
-
-    warnings = answer.get("warnings", []) or []
-
-    with col2:
-        if warnings:
-            st.warning(f"⚠️ {len(warnings)} warning(s)")
-        else:
-            st.success("No warnings")
+    confidence = answer.get("confidence")
+    if confidence is not None:
+        try:
+            confidence_percent = round(float(confidence) * 100)
+            st.metric("Confidence", f"{confidence_percent}%")
+        except (TypeError, ValueError):
+            pass
 
     tabs = st.tabs(
         [
-            "What Happened",
+            "What happened",
             "Legislation",
-            "Parliamentary Activity",
+            "Parliamentary activity",
             "Votes",
-            "What Didn't Happen",
-            "Claims & Sources",
+            "What did not happen",
+            "Claims and sources",
         ]
     )
 
-    sections = [
-        ("what_happened", "No parliamentary activity found."),
+    result_sections = [
+        ("what_happened", "No relevant activity found."),
         ("legislation", "No relevant legislation found."),
-        ("parliamentary_activity", "No debates or discussions found."),
+        ("parliamentary_activity", "No parliamentary activity found."),
         ("votes", "No votes found."),
-        ("what_did_not_happen", "No unverified claims."),
+        ("what_did_not_happen", "No information available."),
     ]
 
-    for tab, (key, empty_message) in zip(tabs[:5], sections):
+    for tab, (key, empty_message) in zip(tabs[:5], result_sections):
         with tab:
-            items = answer.get(key, []) or []
-
-            if items:
-                for item in items:
-                    st.markdown(f"• {item}")
-            else:
-                st.info(empty_message)
+            display_items(answer.get(key, []) or [], empty_message)
 
     with tabs[5]:
         claims = answer.get("claims", []) or []
 
         if claims:
-            st.subheader("Verified Claims")
-
-            for index, claim in enumerate(claims, 1):
-                claim_text = claim.get("text", "")
-                label = claim_text[:60]
-                if len(claim_text) > 60:
-                    label += "..."
-
-                with st.expander(f"Claim {index}: {label}"):
-                    supported = claim.get("supported", False)
-                    claim_confidence = claim.get("confidence", 0.0) or 0.0
-
-                    col1, col2 = st.columns(2)
-
-                    with col1:
-                        status = (
-                            "✅ Supported"
-                            if supported
-                            else "❌ Unsupported"
-                        )
-                        st.markdown(f"**Status:** {status}")
-
-                    with col2:
-                        confidence_pct = int(
-                            float(claim_confidence) * 100
-                        )
-                        st.markdown(
-                            f"**Confidence:** {confidence_pct}%"
-                        )
-
-                    st.markdown(claim_text)
-
+            for index, claim in enumerate(claims, start=1):
+                if isinstance(claim, dict):
+                    text = claim.get("text") or claim.get("claim") or ""
+                    supported = claim.get("supported")
+                    claim_confidence = claim.get("confidence")
                     sources = claim.get("sources", []) or []
-                    if sources:
-                        st.markdown("**Sources:**")
 
-                        for source in sources:
-                            url = source.get("url")
-                            title = source.get("title", "Source")
-                            source_type = source.get(
-                                "source_type",
-                                "unknown",
+                    with st.expander(f"Claim {index}"):
+                        st.write(text)
+
+                        if supported is not None:
+                            st.write(
+                                "✅ Supported"
+                                if supported
+                                else "❌ Not supported"
                             )
 
-                            label = f"{title} *({source_type})*"
+                        if claim_confidence is not None:
+                            st.write(
+                                f"Confidence: "
+                                f"{float(claim_confidence) * 100:.0f}%"
+                            )
 
-                            if url:
-                                st.markdown(f"[{label}]({url})")
-                            else:
-                                st.markdown(label)
+                        for source in sources:
+                            if isinstance(source, dict):
+                                url = source.get("url")
+                                title = source.get("title", "Source")
+                                if url:
+                                    st.markdown(f"[{title}]({url})")
+                                else:
+                                    st.write(title)
+                else:
+                    st.write(claim)
         else:
-            st.info("No verified claims.")
+            st.info("No claims found.")
 
-    st.markdown("---")
-    st.subheader("All Sources")
-
-    sources = answer.get("sources", []) or []
-
-    if sources:
-        for source in sources:
-            url = source.get("url")
-            title = source.get("title", "Source")
-            source_type = source.get("source_type", "unknown")
-            date = source.get("date")
-
-            if url:
-                st.markdown(f"[{title}]({url})")
-            else:
-                st.markdown(title)
-
-            st.caption(source_type)
-
-            if date:
-                st.caption(f"📅 {date}")
-    else:
-        st.info("No sources retrieved.")
-
+    warnings = answer.get("warnings", []) or []
     if warnings:
-        st.markdown("---")
+        st.divider()
         st.subheader("Warnings")
-
         for warning in warnings:
             st.warning(warning)
-```
+
+    sources = answer.get("sources", []) or []
+    if sources:
+        st.divider()
+        st.subheader("Sources")
+        for source in sources:
+            if isinstance(source, dict):
+                url = source.get("url")
+                title = source.get("title", "Source")
+                if url:
+                    st.markdown(f"[{title}]({url})")
+                else:
+                    st.write(title)
