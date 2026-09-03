@@ -3,3 +3,7 @@ requests
 httpx
 pydantic
 python-dotenv
+fastapi
+uvicorn
+httpx
+pydantic
