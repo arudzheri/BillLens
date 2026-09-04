@@ -13,6 +13,11 @@ any bill containing that substring (Office, Offences, Off-patent...).
 
 from __future__ import annotations
 
+# Keep the stop-word list focused on true grammatical filler words and
+# pronouns. Previously this list included domain words (e.g. "bill",
+# "parliament", "prime", "minister") which often removed the only
+# meaningful tokens in a user's question and caused the system to
+# fallback to a small housing-only dataset.
 STOP_WORDS: set[str] = {
     "a", "an", "the", "and", "or", "but", "if", "so", "than", "then",
     "of", "in", "on", "at", "to", "for", "with", "about", "by", "from",
@@ -26,8 +31,7 @@ STOP_WORDS: set[str] = {
     "what", "which", "who", "whom", "whose", "when", "where", "why", "how",
     "tell", "me", "please", "recent", "current", "latest", "any", "some",
     "know", "explain", "show", "give",
-    "uk", "parliament", "parliamentary", "government", "bill", "bills",
-    "law", "laws", "act", "acts", "legislation", "prime", "minister",
+    "uk",
 }
 
 
@@ -36,16 +40,33 @@ def extract_keywords(text: str, max_keywords: int = 3) -> str:
     Extract up to `max_keywords` meaningful search terms from a
     natural-language question, in their original order.
 
-    Returns an empty string if no meaningful keyword is found -- callers
-    should treat that as "no clear topic" and skip the API search rather
-    than searching on leftover filler words.
+    This function is conservative by default but now falls back to a
+    relaxed extraction when the strict filtering removes all tokens.
+
+    Returns an empty string only if no candidate tokens of length > 2
+    are present.
     """
     words = [w.strip("?.,!\"'():;").lower() for w in text.split()]
+    # Strict pass: remove stop words and short tokens
     keywords = [w for w in words if len(w) > 2 and w not in STOP_WORDS]
 
     if not keywords:
-        return ""
+        # Relaxed fallback: keep any token longer than 2 characters
+        fallback = [w for w in words if len(w) > 2]
+        if not fallback:
+            return ""
+        # Preserve original order and limit to `max_keywords`
+        ordered = []
+        seen = set()
+        for w in fallback:
+            if w not in seen:
+                seen.add(w)
+                ordered.append(w)
+            if len(ordered) >= max_keywords:
+                break
+        return " ".join(ordered)
 
+    # Prefer the longest `max_keywords` tokens but preserve original order
     keep = set(sorted(keywords, key=len, reverse=True)[:max_keywords])
     ordered: list[str] = []
     seen: set[str] = set()
