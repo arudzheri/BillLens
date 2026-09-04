@@ -158,10 +158,6 @@ class BillLensAnswerGenerator:
             if top_evidence:
                 return f"Retrieved parliamentary records indicate: {' '.join(top_evidence)}"
 
-        clean_q = question.lower()
-        if "prime minister" in clean_q:
-            return "The Prime Minister of the United Kingdom is Keir Starmer (Leader of the Labour Party)."
-
         return (
             f"BillLens searched parliamentary databases for '{question}' but did not find "
             "sufficient matching legislative records."
