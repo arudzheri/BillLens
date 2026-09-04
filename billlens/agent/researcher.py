@@ -94,8 +94,9 @@ class BillLensResearcher:
             seen.add(key)
             deduped.append(item)
 
-        # If no evidence found, try fallback dataset
+        # If no evidence found, try fallback dataset with topic filtering
         if not deduped:
+            # CRITICAL FIX: Pass search_keyword to load_local_fallback so it filters by topic
             deduped = self.load_local_fallback(search_keyword or query)
 
         return deduped
@@ -122,13 +123,22 @@ class BillLensResearcher:
             raw_items = data.get("evidence", [])
 
             # If a topic was provided, try to filter the fallback dataset by topic
-            if topic:
+            if topic and topic.strip():
                 topic_l = topic.strip().lower()
+                # Split on spaces to match any word in the topic
+                topic_words = [w for w in topic_l.split() if len(w) > 2]
+                
                 for item in raw_items:
                     title = (item.get("title") or "").lower()
                     content = (item.get("content") or "").lower()
-                    # match if the topic appears in the title or content
-                    if topic_l in title or topic_l in content:
+                    
+                    # Match if ANY topic word appears in title or content
+                    matched = any(
+                        word in title or word in content 
+                        for word in topic_words
+                    )
+                    
+                    if matched:
                         evidence_items.append(
                             Evidence(
                                 title=item.get("title", "Fallback Record"),
