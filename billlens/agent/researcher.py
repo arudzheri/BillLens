@@ -103,6 +103,12 @@ class BillLensResearcher:
     def load_local_fallback(self, topic: str = "") -> List[Evidence]:
         """
         Load fallback evidence from local JSON.
+
+        Improved behaviour:
+        - If a topic is provided, only return fallback items that clearly match the
+          topic (title or content contains the topic). This avoids returning
+          unrelated (e.g. housing-only) fallback data for unrelated queries.
+        - If no topic is provided, return the full fallback dataset.
         """
         fallback_path = Path("billlens/data/fallback_data.json")
         if not fallback_path.exists():
@@ -113,7 +119,33 @@ class BillLensResearcher:
                 data = json.load(f)
 
             evidence_items = []
-            for item in data.get("evidence", []):
+            raw_items = data.get("evidence", [])
+
+            # If a topic was provided, try to filter the fallback dataset by topic
+            if topic:
+                topic_l = topic.strip().lower()
+                for item in raw_items:
+                    title = (item.get("title") or "").lower()
+                    content = (item.get("content") or "").lower()
+                    # match if the topic appears in the title or content
+                    if topic_l in title or topic_l in content:
+                        evidence_items.append(
+                            Evidence(
+                                title=item.get("title", "Fallback Record"),
+                                content=item.get("content", ""),
+                                source_type=item.get("source_type", "legislation"),
+                                url=item.get("url", ""),
+                                date=item.get("date", ""),
+                                relevance_score=item.get("relevance_score", 0.7),
+                            )
+                        )
+
+                # If we found no matching fallback items, return empty list so callers
+                # don't get unrelated (e.g. housing-only) results.
+                return evidence_items
+
+            # No topic provided: return all fallback items
+            for item in raw_items:
                 evidence_items.append(
                     Evidence(
                         title=item.get("title", "Fallback Record"),
@@ -124,6 +156,7 @@ class BillLensResearcher:
                         relevance_score=item.get("relevance_score", 0.7),
                     )
                 )
+
             return evidence_items
         except Exception as err:
             print(f"Error loading local fallback: {err}")
