@@ -5,6 +5,7 @@ BillLens Researcher Agent
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -13,6 +14,8 @@ from billlens.data.parliament import BillsAPIClient, ParliamentAPIClient
 from billlens.data.hansard import HansardClient
 from billlens.data.keywords import extract_keywords
 from billlens.models.evidence import Evidence
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -50,12 +53,16 @@ class BillLensResearcher:
         """
         evidence: List[Evidence] = []
         search_keyword = self._topic_from_query(query)
+        
+        logger.info(f"[GATHER_EVIDENCE] Query: '{query}'")
+        logger.info(f"[GATHER_EVIDENCE] Extracted keyword: '{search_keyword}'")
 
         # Try to search with extracted keywords
         if search_keyword:
             # Search Parliamentary Bills API
             try:
                 bills = await self.bills_client.search_bills(search_term=search_keyword)
+                logger.info(f"[BILLS_API] Found {len(bills)} bills")
                 for bill in bills:
                     evidence.append(
                         Evidence(
@@ -73,16 +80,17 @@ class BillLensResearcher:
                         )
                     )
             except Exception as err:
-                print(f"Bills API Error: {err}")
+                logger.error(f"[BILLS_API_ERROR] {err}")
 
             # Search Hansard for debates on the topic
             try:
                 debate_evidence = await self.hansard_client.search(
                     query=search_keyword, limit=10
                 )
+                logger.info(f"[HANSARD] Found {len(debate_evidence)} debates")
                 evidence.extend(debate_evidence)
             except Exception as err:
-                print(f"Hansard API Error: {err}")
+                logger.error(f"[HANSARD_ERROR] {err}")
 
         # Deduplicate
         deduped: List[Evidence] = []
@@ -94,10 +102,13 @@ class BillLensResearcher:
             seen.add(key)
             deduped.append(item)
 
+        logger.info(f"[GATHER_EVIDENCE] After API calls: {len(deduped)} evidence items")
+
         # If no evidence found, try fallback dataset with topic filtering
         if not deduped:
-            # CRITICAL FIX: Pass search_keyword to load_local_fallback so it filters by topic
+            logger.info(f"[FALLBACK] No API evidence found, loading fallback data with topic: '{search_keyword or query}'")
             deduped = self.load_local_fallback(search_keyword or query)
+            logger.info(f"[FALLBACK] Fallback returned {len(deduped)} items")
 
         return deduped
 
@@ -113,6 +124,7 @@ class BillLensResearcher:
         """
         fallback_path = Path("billlens/data/fallback_data.json")
         if not fallback_path.exists():
+            logger.error(f"[FALLBACK] Path does not exist: {fallback_path}")
             return []
 
         try:
@@ -121,14 +133,16 @@ class BillLensResearcher:
 
             evidence_items = []
             raw_items = data.get("evidence", [])
+            logger.info(f"[FALLBACK] Loaded {len(raw_items)} total items from fallback_data.json")
 
             # If a topic was provided, try to filter the fallback dataset by topic
             if topic and topic.strip():
                 topic_l = topic.strip().lower()
-                # Split on spaces to match any word in the topic
                 topic_words = [w for w in topic_l.split() if len(w) > 2]
                 
-                for item in raw_items:
+                logger.info(f"[FALLBACK] Topic words to match: {topic_words}")
+                
+                for idx, item in enumerate(raw_items):
                     title = (item.get("title") or "").lower()
                     content = (item.get("content") or "").lower()
                     
@@ -137,6 +151,8 @@ class BillLensResearcher:
                         word in title or word in content 
                         for word in topic_words
                     )
+                    
+                    logger.info(f"[FALLBACK] Item {idx} ({item.get('title')}): matched={matched}")
                     
                     if matched:
                         evidence_items.append(
@@ -150,11 +166,11 @@ class BillLensResearcher:
                             )
                         )
 
-                # If we found no matching fallback items, return empty list so callers
-                # don't get unrelated (e.g. housing-only) results.
+                logger.info(f"[FALLBACK] Filtered to {len(evidence_items)} matching items")
                 return evidence_items
 
             # No topic provided: return all fallback items
+            logger.info(f"[FALLBACK] No topic provided, returning all {len(raw_items)} items")
             for item in raw_items:
                 evidence_items.append(
                     Evidence(
@@ -169,7 +185,7 @@ class BillLensResearcher:
 
             return evidence_items
         except Exception as err:
-            print(f"Error loading local fallback: {err}")
+            logger.error(f"[FALLBACK_ERROR] {err}")
             return []
 
     @staticmethod
