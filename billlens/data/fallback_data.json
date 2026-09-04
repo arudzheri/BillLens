@@ -63,6 +63,118 @@
       "url": "https://obr.uk/housing",
       "date": "2024-08-15",
       "relevance_score": 0.65
+    },
+    {
+      "title": "Environment Act 2021",
+      "content": "Comprehensive environment legislation establishing legally binding environmental targets, including improvements to air and water quality, biodiversity restoration, and waste reduction measures.",
+      "source_type": "legislation",
+      "url": "https://legislation.gov.uk/ukpga/2021/30",
+      "date": "2021-11-10",
+      "relevance_score": 0.88
+    },
+    {
+      "title": "Parliamentary Debate: Climate Change and Environmental Policy",
+      "content": "Members discussed the UK's climate commitments, net-zero targets, and environmental regulations. Debate included energy transition, renewable investments, and ecological protection.",
+      "source_type": "debate",
+      "url": "https://hansard.parliament.uk/environment",
+      "date": "2024-07-20",
+      "relevance_score": 0.82
+    },
+    {
+      "title": "Skills and Post-Secondary Education Act 2022",
+      "content": "Legislation reforming higher education, vocational training, and apprenticeships. Establishes new frameworks for skills development and employer engagement in education.",
+      "source_type": "legislation",
+      "url": "https://legislation.gov.uk/ukpga/2022/21",
+      "date": "2022-04-29",
+      "relevance_score": 0.81
+    },
+    {
+      "title": "Parliamentary Committee: Education and Skills Reform",
+      "content": "Select committee report examining the effectiveness of education and skills policy, including funding for schools, teacher retention, and vocational training pathways.",
+      "source_type": "debate",
+      "url": "https://committees.parliament.uk/education-report",
+      "date": "2024-05-15",
+      "relevance_score": 0.78
+    },
+    {
+      "title": "Health and Social Care Act 2023",
+      "content": "Major health sector legislation addressing NHS funding, social care reforms, and healthcare worker protections. Includes provisions for mental health services and preventive care.",
+      "source_type": "legislation",
+      "url": "https://legislation.gov.uk/ukpga/2023/40",
+      "date": "2023-06-15",
+      "relevance_score": 0.86
+    },
+    {
+      "title": "Parliamentary Debate: NHS and Healthcare System",
+      "content": "Debate on NHS funding, waiting times, healthcare workforce challenges, and social care integration. Members discussed policy responses to patient safety and service delivery.",
+      "source_type": "debate",
+      "url": "https://hansard.parliament.uk/health",
+      "date": "2024-06-28",
+      "relevance_score": 0.84
+    },
+    {
+      "title": "Economic Crime and Corporate Transparency Bill 2023",
+      "content": "Legislation addressing economic crime, including money laundering prevention, beneficial ownership transparency, and corporate accountability measures.",
+      "source_type": "legislation",
+      "url": "https://legislation.gov.uk/ukpga/2023/56",
+      "date": "2023-03-15",
+      "relevance_score": 0.79
+    },
+    {
+      "title": "Parliamentary Debate: Economic Crime and Fraud Prevention",
+      "content": "Members discussed strategies to combat economic crime, including corporate fraud, money laundering, and financial exploitation. Debate covered regulatory reform and law enforcement.",
+      "source_type": "debate",
+      "url": "https://hansard.parliament.uk/economic-crime",
+      "date": "2024-07-10",
+      "relevance_score": 0.76
+    },
+    {
+      "title": "Online Safety Bill 2023",
+      "content": "Landmark legislation regulating online content, platform accountability, and digital safety. Includes protections for children and standards for content moderation.",
+      "source_type": "legislation",
+      "url": "https://legislation.gov.uk/ukpga/2023/50",
+      "date": "2023-11-08",
+      "relevance_score": 0.87
+    },
+    {
+      "title": "Parliamentary Debate: Digital Rights and Online Regulation",
+      "content": "Debate on digital safety, online privacy, platform regulation, and protection of children online. Members discussed balancing free speech with safety measures.",
+      "source_type": "debate",
+      "url": "https://hansard.parliament.uk/digital-safety",
+      "date": "2024-08-05",
+      "relevance_score": 0.81
+    },
+    {
+      "title": "Nationality and Borders Act 2022",
+      "content": "Immigration and nationality legislation covering asylum procedures, border control, and immigration enforcement. Establishes new frameworks for visa processing.",
+      "source_type": "legislation",
+      "url": "https://legislation.gov.uk/ukpga/2022/36",
+      "date": "2022-07-28",
+      "relevance_score": 0.83
+    },
+    {
+      "title": "Parliamentary Debate: Immigration and Border Policy",
+      "content": "Members debated immigration policy, asylum reform, border security, and immigration enforcement. Discussion included integration programs and refugee support.",
+      "source_type": "debate",
+      "url": "https://hansard.parliament.uk/immigration",
+      "date": "2024-07-18",
+      "relevance_score": 0.8
+    },
+    {
+      "title": "Strikes (Minimum Service Levels) Bill 2023",
+      "content": "Legislation establishing minimum service levels during industrial action across key sectors including transport and utilities.",
+      "source_type": "legislation",
+      "url": "https://legislation.gov.uk/ukpga/2023/46",
+      "date": "2023-03-20",
+      "relevance_score": 0.77
+    },
+    {
+      "title": "Parliamentary Debate: Workers' Rights and Industrial Action",
+      "content": "Debate on strikes, workers' rights, trade union protections, and employment law. Members discussed balancing worker protections with public service continuity.",
+      "source_type": "debate",
+      "url": "https://hansard.parliament.uk/workers-rights",
+      "date": "2024-06-05",
+      "relevance_score": 0.75
     }
   ]
 }
