@@ -92,7 +92,7 @@ async def test_researcher_returns_evidence(monkeypatch):
 
     result = await researcher.research(plan)
 
-    assert result.topic == "housing"
+    assert "housing" in result.query.lower()
 
     assert len(result.evidence) > 0
 
@@ -156,7 +156,7 @@ async def test_orchestrator_answer_uses_research_result(monkeypatch):
 
     async def fake_research(self, plan):
         return ResearchResult(
-            topic="housing",
+            query="What laws have changed about housing?",
             evidence=[
                 Evidence(
                     title="Housing Act",
