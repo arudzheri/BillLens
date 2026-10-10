@@ -5,8 +5,13 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+&& rm -rf /var/lib/apt/lists/*
+
 COPY . .
 
-RUN pip install --no-cache-dir fastapi uvicorn httpx pydantic python-dotenv
+RUN pip install --no-cache-dir -e .
 
-CMD ["sh", "-c", "uvicorn apps.api.main:app --host 0.0.0.0 --port ${PORT}"]
+EXPOSE 8000
+
+CMD ["uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
