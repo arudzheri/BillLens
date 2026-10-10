@@ -1,23 +1,25 @@
 # BillLens
 
-AI-powered parliamentary intelligence for understanding UK legislation, debates, bills, votes, and MPs.
+A research tool for UK legislation, debates, bills, votes and MPs.
 
 ## Overview
 
-BillLens researches parliamentary questions using data from UK Parliament and UK legislation sources. It returns evidence-backed answers with citations, confidence scores, and warnings when claims are not sufficiently supported.
+BillLens researches parliamentary questions using data from UK Parliament and UK legislation sources. It returns evidence-backed answers with citations, confidence scores, and warnings when claims [...]
 
 ## Features
 
 - Multi-source research across bills, debates, legislation, votes, and MPs
 - Deterministic research planning and evidence collection
-- Hybrid retrieval with lexical and semantic-search support
 - Claim extraction and evidence verification
 - Source citations, confidence scores, and warnings
 - FastAPI REST API
 - Streamlit dashboard
-- PostgreSQL persistence
-- Redis caching
 - Docker Compose development environment
+
+### Planned
+
+- Semantic search with embeddings
+- PostgreSQL persistence and Redis caching (code started in billlens/persistence and billlens/data/cache.py, not yet connected)
 
 ## Project Structure
 
