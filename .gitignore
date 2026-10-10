@@ -34,3 +34,6 @@ data/cache/
 
 # Logs
 *.log
+
+*.zip
+*.egg-info/
