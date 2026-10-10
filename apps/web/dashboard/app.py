@@ -56,12 +56,8 @@ def display_items(items: list[Any], empty_message: str) -> None:
 
 API_URL = get_api_url()
 
-# Debug outputs requested by the developer/user
-st.write("DEBUG: API_URL =", API_URL)
-st.write("DEBUG: session_state keys:", list(st.session_state.keys()))
-
 st.title("🏛️ BillLens")
-st.caption("AI-powered parliamentary intelligence for everyone.")
+st.caption("Parliamentary research for everyone.")
 
 if not API_URL:
     st.error("The API is not configured.")
